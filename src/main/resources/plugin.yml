@@ -1,0 +1,22 @@
+name: Teleporter
+version: 0.1.0
+description: A plugin for using /tpa and /tpr
+author: jazhdo
+main: mc.jazhdo.Main
+
+permissions:
+  teleporter.teleport:
+    description: Access to the /tpa and /tpr commands
+    default: true
+
+commands:
+  tpa:
+    description: Accepts a teleport request from somebody.
+    usage: /tpa <playername>
+    aliases: [tpaccept]
+    permission: teleporter.teleport
+  tpr:
+    description: Requests to teleport to somebody.
+    usage: /tpr <playername>
+    aliases: [tprequest]
+    permission: teleporter.teleport
