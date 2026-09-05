@@ -1,5 +1,5 @@
 name: Teleporter
-version: 0.1.0
+version: 0.2.0
 description: A plugin for using /tpa and /tpr
 author: jazhdo
 main: mc.jazhdo.Main
@@ -7,6 +7,9 @@ main: mc.jazhdo.Main
 permissions:
   teleporter.teleport:
     description: Access to the /tpa and /tpr commands
+    default: true
+  teleporter.home:
+    description: Access to the /sethome, /delhome, /homes, /renamehome, and /home commands
     default: true
 
 commands:
@@ -20,3 +23,28 @@ commands:
     usage: /tpr <playername>
     aliases: [tprequest]
     permission: teleporter.teleport
+  sethome:
+    description: Sets your home at your current location.
+    usage: /sethome <home_name>
+    aliases: [homeset]
+    permission: teleporter.home
+  delhome:
+    description: Deletes your home with the given name.
+    usage: /delhome <home_name>
+    aliases: [deletehome, homedel, homedelete]
+    permission: teleporter.home
+  homes:
+    description: Lists all your homes.
+    usage: /homes
+    aliases: [homelist, listhomes]
+    permission: teleporter.home
+  renamehome:
+    description: Renames a given home to another name.
+    usage: /renamehome <old_name> <new_name>
+    aliases: [homerename]
+    permission: teleporter.home
+  home:
+    description: Teleports you to a given home.
+    usage: /home <home_name>
+    aliases: [hometp, tphome]
+    permission: teleporter.home
