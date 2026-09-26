@@ -1,27 +1,37 @@
 name: Teleporter
-version: 0.2.0
-description: A plugin for using /tpa and /tpr
+version: 0.2.1
+description: A plugin to have teleportation requests and homes
 author: jazhdo
 main: mc.jazhdo.Main
 
 permissions:
   teleporter.teleport:
-    description: Access to the /tpa and /tpr commands
+    description: Access to the teleportation requests system
     default: true
   teleporter.home:
-    description: Access to the /sethome, /delhome, /homes, /renamehome, and /home commands
+    description: Access to the homes system
     default: true
 
 commands:
   tpa:
-    description: Accepts a teleport request from somebody.
-    usage: /tpa <playername>
-    aliases: [tpaccept]
-    permission: teleporter.teleport
-  tpr:
-    description: Requests to teleport to somebody.
-    usage: /tpr <playername>
+    description: Requests to teleport to someone.
+    usage: /tpa <player_name>
     aliases: [tprequest]
+    permission: teleporter.teleport
+  tpahere:
+    description: Requests someone to teleport to you.
+    usage: /tpahere <player_name>
+    aliases: [tpme]
+    permission: teleporter.teleports
+  tpaccept:
+    description: Accepts a teleport request from someone.
+    usage: /tpaccept <player_name>
+    aliases: [tpyes]
+    permission: teleporter.teleport
+  tpdeny:
+    description: Denys a teleportation request from someone.
+    usage: /tpdeny <player_name>
+    aliases: [tpno, tpcancel]
     permission: teleporter.teleport
   sethome:
     description: Sets your home at your current location.

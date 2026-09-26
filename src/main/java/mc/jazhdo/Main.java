@@ -18,6 +18,7 @@ import org.bukkit.Location;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitScheduler;
@@ -30,50 +31,62 @@ public class Main extends JavaPlugin {
     private Logger log;
     private Connection conn;
     private BukkitScheduler scheduler;
+    private FileConfiguration config;
 
     private class Commands implements CommandExecutor {
-        private List<TPRequest> requests = new ArrayList<>();
-        private Main plugin;
+        private final List<TPRequest> requests = new ArrayList<>();
+        private final Main plugin;
+        private enum RequestType {
+            TPATO, TPAHERE
+        }
 
         public Commands(Main plugin) {
             this.plugin = plugin;
         }
 
         private class TPRequest {
-            private String from, to;
-            private BukkitTask removeTask = null;
+            private final String from, to;
+            private final RequestType type;
+            private final BukkitTask removeTask;
 
-            public TPRequest(String from, String to) {
+            public TPRequest(String from, String to, RequestType type) {
                 this.from = from;
                 this.to = to;
-            }
-
-            public void setTask(BukkitTask removeTask) {
-                this.removeTask = removeTask;
+                this.type = type;
+                this.removeTask = Bukkit.getScheduler().runTaskLater(plugin, this::expire, 1200l);
             }
 
             public void expire() {
                 requests.remove(this);
                 Player fromPlayer = Bukkit.getPlayer(from), toPlayer = Bukkit.getPlayer(to);
-                if (fromPlayer != null) sendError(fromPlayer, "Your tp request to " + to + " has expired.");
-                if (toPlayer != null) sendError(toPlayer, "Your tp request from " + from + " has expired.");
+                boolean isNormalTpa = type == RequestType.TPATO;
+                if (fromPlayer != null) sendError(fromPlayer, "Your tp request " + (isNormalTpa ? "to" : "from") + " " + to + " has expired.");
+                if (toPlayer != null) sendError(toPlayer, "Your tp request " + (isNormalTpa ? "from" : "to") + " " + from + " has expired.");
             }
 
-            public boolean equals(String from, String to) {
-                return this.from.equalsIgnoreCase(from) && this.to.equalsIgnoreCase(to);
+            public boolean isRightRequest(String sender, String reciever) {
+                return (type == RequestType.TPATO && from.equalsIgnoreCase(sender) && to.equalsIgnoreCase(reciever)) || (type == RequestType.TPAHERE && to.equalsIgnoreCase(sender) && from.equalsIgnoreCase(reciever));
             }
-            
-            public void teleport() {
+
+            public void handle(boolean accept) {
                 if (removeTask != null && !removeTask.isCancelled()) removeTask.cancel();
                 requests.remove(this);
-                Player fromPlayer = Bukkit.getPlayer(from), toPlayer = Bukkit.getPlayer(to);
-                if (fromPlayer == null) sendError(toPlayer, "Player " + from + " is no longer online. Teleportation failed.");
-                else {
-                    sendInfo(fromPlayer, "Teleporting you to " + to + "...");
-                    sendInfo(toPlayer, "Teleporting " + from + " to you...");
-                    fromPlayer.teleport(toPlayer);
+                if (accept) {
+                    Player fromPlayer = Bukkit.getPlayer(from), toPlayer = Bukkit.getPlayer(to);
+                    if (fromPlayer == null) sendError(toPlayer, "Player " + from + " is no longer online. Teleportation failed.");
+                    else if (toPlayer == null) sendError(fromPlayer, "Player " + to + " is no longer online. Teleportation failed.");
+                    else {
+                        sendInfo(fromPlayer, "Teleporting you to " + to + "...");
+                        sendInfo(toPlayer, "Teleporting " + from + " to you...");
+                        fromPlayer.teleport(toPlayer);
+                    }
                 }
             }
+        }
+
+        private boolean requestExists(String sender, String reciever) {
+            for (TPRequest request : requests) if (request.isRightRequest(sender, reciever)) return true;
+            return false;
         }
 
         @Override
@@ -87,34 +100,96 @@ public class Main extends JavaPlugin {
                 }
 
                 switch (command.getName()) {
+                    // TP Requesting
                     case "tpa" -> {
-                        String from = args[0], to = player.getName();
-                        for (TPRequest request : requests) {
-                            if (request.equals(from, to)) {
-                                request.teleport();
-                                return true;
-                            }
-                        }
-                        sendError(player, "TP request not found.");
-                    }
-                    case "tpr" -> {
                         // Get and verify the player teleporting to
                         Player to = Bukkit.getPlayer(args[0]);
                         if (to == null) {
                             sendError(player, "Player " + args[0] + " was not found. You can only send tp requests to online players.");
                             return true;
                         }
+
+                        // Prevent duplicates
+                        String playerName = player.getName(), toName = to.getName();
+                        if (requestExists(playerName, toName)) {
+                            sendError(player, "There is already a tp request for teleporting you to " + toName + ". Please wait for it to expire before requesting again.");
+                            return true;
+                        }
                         
                         // Make the request and add it to the list
-                        String playerName = player.getName(), toName = to.getName();
-                        TPRequest request = new TPRequest(playerName, toName);
-                        request.setTask(Bukkit.getScheduler().runTaskLater(plugin, request::expire, 1200l));
+                        TPRequest request = new TPRequest(playerName, toName, RequestType.TPATO);
                         requests.add(request);
 
                         // Send notifications to both parties
                         sendInfo(player, "Your tp request to " + toName + " has been sent. It will expire in 60 seconds.");
-                        sendInfo(to, playerName + " has sent a tp request to you. It will expire in 60 seconds. Use the command \"/tpa " + playerName + "\" to accept.");
+                        sendInfo(to, playerName + " has requested to tp to you. The request will expire in 60 seconds. Use the command \"/tpaccept " + playerName + "\" to accept or \"/tpdeny " + playerName + "\" to deny.");
                     }
+                    case "tpahere" -> {
+                        // Get and verify the player teleporting from
+                        Player from = Bukkit.getPlayer(args[0]);
+                        if (from == null) {
+                            sendError(player, "Player " + args[0] + " was not found. You can only send tp requests to online players.");
+                            return true;
+                        }
+
+                        // Prevent duplicates
+                        String playerName = player.getName(), fromName = from.getName();
+                        if (requestExists(playerName, fromName)) {
+                            sendError(player, "There is already a tp request for teleporting " + fromName + " to you. Please wait for it to expire before requesting again.");
+                            return true;
+                        }
+                        
+                        // Make the request and add it to the list
+                        TPRequest request = new TPRequest(fromName, playerName, RequestType.TPAHERE);
+                        requests.add(request);
+
+                        // Send notifications to both parties
+                        sendInfo(player, "Your tp request to " + fromName + " has been sent. It will expire in 60 seconds.");
+                        sendInfo(from, playerName + " has requested you to tp to them. The request will expire in 60 seconds. Use the command \"/tpaccept " + playerName + "\" to accept or \"/tpdeny " + playerName + "\" to deny.");
+                    }
+                    // TP Request Handling
+                    case "tpaccept" -> {
+                        String from = args[0], to = player.getName();
+                        for (TPRequest request : requests) {
+                            if (request.isRightRequest(from, to)) {
+                                request.handle(true);
+                                return true;
+                            }
+                        }
+                        sendError(player, "TP request not found.");
+                    }
+                    case "tpdeny" -> {
+                        String from = args[0], to = player.getName();
+                        for (TPRequest request : requests) {
+                            if (request.isRightRequest(from, to)) {
+                                request.handle(false);
+                                sendInfo(player, "You have declined your TP request from " + args[0] + ".");
+                                return true;
+                            }
+                        }
+                        sendError(player, "TP request not found.");
+                    }
+                    // // TP Request management
+                    // case "tptoggle" -> {
+
+                    // }
+                    // case "tpon" -> {
+
+                    // }
+                    // case "tpoff" -> {
+
+                    // }
+                    // case "tpblock" -> {
+
+                    // }
+                    // case "tpunblock" -> {
+
+                    // }
+                    // // Random TP
+                    // case "tpr" -> {
+
+                    // }
+                    // Homes
                     case "sethome" -> {
                         if (args.length < 1) sendError(player, "<home_name> argument required. (/sethome <home_name>)");
                         else {
@@ -144,7 +219,6 @@ public class Main extends JavaPlugin {
                             });
                         }
                     }
-                    // TODO: GO through async tasks and make sure EVERYTHING is thread safe (logging is thread safe)
                     case "delhome" -> {
                         if (args.length < 1) sendError(player, "<home_name> argument required. (/delhome <home_name>)");
                         else {
@@ -171,8 +245,8 @@ public class Main extends JavaPlugin {
                             try (PreparedStatement ps = conn.prepareStatement("SELECT name FROM homes WHERE player = ?")) {
                                 ps.setString(1, playerName.toLowerCase());
                                 ResultSet result = ps.executeQuery();
-                                String build = ChatColor.GOLD + "=== Your Homes ===";
-                                while (result.next()) build += "\n" + result.getString("name");
+                                String build = ChatColor.GOLD + "=== Your Homes ===" + ChatColor.WHITE;
+                                while (result.next()) build += "\n• " + result.getString("name");
                                 String output = build;
                                 scheduler.runTask(plugin, () -> sendMsg(player, output));
                             } catch (SQLException ex) {
@@ -219,7 +293,9 @@ public class Main extends JavaPlugin {
                                     float yaw = result.getFloat("yaw"), pitch = result.getFloat("pitch");
                                     scheduler.runTask(plugin, () -> {
                                         sendInfo(player, "Teleporting you to your " + args[0] + " home.");
-                                        player.teleport(new Location(Bukkit.getWorld(world), x, y, z, yaw, pitch));
+                                        Location loc = new Location(Bukkit.getWorld(world), x, y, z, yaw, pitch);
+                                        loc.getChunk().load();
+                                        if (!player.teleport(loc)) sendInfo(player, ChatColor.RED + "Teleport unsuccessful.");
                                     });
                                 } catch (SQLException ex) {
                                     ex.printStackTrace();
@@ -254,11 +330,15 @@ public class Main extends JavaPlugin {
 
         // Initalize commands
         Commands commands = new Commands(this);
-        String[] cmds = new String[]{"tpa", "tpr", "sethome", "delhome", "homes", "renamehome", "home"};
+        String[] cmds = new String[]{"tpa", "tpahere", "tpaccept", "tpdeny", "sethome", "delhome", "homes", "renamehome", "home"};
         for (String cmd : cmds) getCommand(cmd).setExecutor(commands);
 
         // Get scheduler
         scheduler = Bukkit.getScheduler();
+
+        // Setup config
+        saveDefaultConfig();
+        config = getConfig();
 
         // Create data directory
         File dataDirectory = getDataFolder();
@@ -291,7 +371,7 @@ public class Main extends JavaPlugin {
                 "CREATE TABLE IF NOT EXISTS \"homes\" (" +
                 "\"player\" TEXT NOT NULL COLLATE NOCASE, \"name\" TEXT NOT NULL COLLATE NOCASE, " + 
                 "\"world\" TEXT NOT NULL COLLATE NOCASE, \"x\" REAL NOT NULL COLLATE BINARY, \"y\" REAL NOT NULL COLLATE BINARY, \"z\" REAL NOT NULL COLLATE BINARY, \"yaw\" REAL NOT NULL COLLATE BINARY, \"pitch\" REAL NOT NULL COLLATE BINARY, " +
-                "UNIQUE(\"player\", \"name\")"
+                "UNIQUE(\"player\", \"name\"))"
             );
         } catch (SQLException ex) {
             ex.printStackTrace();
