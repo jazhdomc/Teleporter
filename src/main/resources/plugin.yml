@@ -1,5 +1,5 @@
 name: Teleporter
-version: 0.3.0
+version: 0.3.1
 description: A plugin to have teleportation requests and homes
 author: jazhdo
 main: mc.jazhdo.Main

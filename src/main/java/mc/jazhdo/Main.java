@@ -142,14 +142,14 @@ public class Main extends JavaPlugin {
             accept.setColor(net.md_5.bungee.api.ChatColor.GREEN);
             accept.setBold(true);
             accept.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new BaseComponent[] {acceptHoverText}));
-            accept.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "tpaccept " + playerName));
+            accept.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tpaccept " + playerName));
             or.setColor(net.md_5.bungee.api.ChatColor.WHITE);
             or.setBold(false);
             denyHoverText.setColor(net.md_5.bungee.api.ChatColor.GOLD);
             deny.setColor(net.md_5.bungee.api.ChatColor.RED);
             deny.setBold(true);
             deny.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new BaseComponent[] {denyHoverText}));
-            deny.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "tpdeny " + playerName));
+            deny.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/tpdeny " + playerName));
             period.setColor(net.md_5.bungee.api.ChatColor.WHITE);
             period.setBold(false);
             to.spigot().sendMessage(new BaseComponent[] {prefix, message, accept, or, deny, period});
@@ -337,10 +337,6 @@ public class Main extends JavaPlugin {
 
         // Get scheduler
         scheduler = Bukkit.getScheduler();
-
-        // Setup config
-        saveDefaultConfig();
-        config = getConfig();
 
         // Create data directory
         File dataDirectory = getDataFolder();
