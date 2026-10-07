@@ -1,3 +1,3 @@
 # Teleporter
 
-> A plugin for bringing /tpa and /tpr
+> A teleportation plugin for use in 1.12 survival

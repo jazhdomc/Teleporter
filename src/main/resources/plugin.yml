@@ -1,5 +1,5 @@
 name: Teleporter
-version: 0.2.1
+version: 0.3.0
 description: A plugin to have teleportation requests and homes
 author: jazhdo
 main: mc.jazhdo.Main
@@ -22,16 +22,16 @@ commands:
     description: Requests someone to teleport to you.
     usage: /tpahere <player_name>
     aliases: [tpme]
-    permission: teleporter.teleports
+    permission: teleporter.teleport
   tpaccept:
     description: Accepts a teleport request from someone.
     usage: /tpaccept <player_name>
-    aliases: [tpyes]
+    aliases: [tpyes, tpy]
     permission: teleporter.teleport
   tpdeny:
     description: Denys a teleportation request from someone.
     usage: /tpdeny <player_name>
-    aliases: [tpno, tpcancel]
+    aliases: [tpno, tpn]
     permission: teleporter.teleport
   sethome:
     description: Sets your home at your current location.
